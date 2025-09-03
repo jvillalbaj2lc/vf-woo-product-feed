@@ -35,12 +35,13 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
          * Force regeneration of the feed file.
          * Can be called from the admin page or WP-CLI.
          */
-        public function regenerate_file() {
+        public function regenerate_file( $lang = null ) {
             $feed_dir = VF_FB_RSS_Admin::get_feed_directory();
-            $file_path = $feed_dir['path'] . '/facebook.xml';
+            $file_name = $lang ? 'facebook-' . $lang . '.xml' : 'facebook.xml';
+            $file_path = $feed_dir['path'] . '/' . $file_name;
 
             ob_start();
-            $this->generate_feed_content();
+            $this->generate_feed_content( $lang );
             $feed_xml = ob_get_clean();
 
             // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
@@ -50,9 +51,10 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
         /**
          * Deletes the generated feed file.
          */
-        public function clear_feed_file() {
+        public function clear_feed_file( $lang = null ) {
             $feed_dir = VF_FB_RSS_Admin::get_feed_directory();
-            $file_path = $feed_dir['path'] . '/facebook.xml';
+            $file_name = $lang ? 'facebook-' . $lang . '.xml' : 'facebook.xml';
+            $file_path = $feed_dir['path'] . '/' . $file_name;
             if ( file_exists( $file_path ) ) {
                 unlink( $file_path );
             }
@@ -61,7 +63,7 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
         /**
          * Generates the raw XML content for the feed by querying products.
          */
-        private function generate_feed_content() {
+        private function generate_feed_content( $lang = null ) {
             $xml = new XMLWriter();
 			$xml->openMemory();
 			$xml->setIndent( true );
@@ -73,7 +75,8 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 			$xml->startElement( 'channel' );
 
             $feed_dir = VF_FB_RSS_Admin::get_feed_directory();
-            $feed_url = $feed_dir['url'] . '/facebook.xml';
+            $file_name = $lang ? 'facebook-' . $lang . '.xml' : 'facebook.xml';
+            $feed_url = $feed_dir['url'] . '/' . $file_name;
 
 			$xml->writeElement( 'title', html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' ) . ' - Facebook RSS Feed' );
 			$xml->writeElement( 'link', home_url() );
@@ -92,6 +95,10 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 				'tax_query'      => array(),
                 'meta_query'     => array('relation' => 'AND'),
 			);
+
+            if ( $lang && vf_fb_rss_is_polylang_wc_active() ) {
+                $args['lang'] = $lang;
+            }
 
             $exclude_cats = $this->get_setting('exclude_categories', array());
             if ( ! empty($exclude_cats) ) {

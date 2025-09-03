@@ -72,6 +72,16 @@ function vf_fb_rss_init() {
 add_action( 'plugins_loaded', 'vf_fb_rss_init' );
 
 /**
+ * Checks if Polylang for WooCommerce is active.
+ *
+ * @return bool
+ */
+function vf_fb_rss_is_polylang_wc_active() {
+    // A simple check for the existence of the main Polylang class and the WooCommerce integration class.
+    return class_exists( 'Polylang' ) && class_exists( 'PLL_WC' );
+}
+
+/**
  * Declares compatibility with WooCommerce features.
  */
 add_action( 'before_woocommerce_init', function() {

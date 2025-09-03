@@ -33,37 +33,76 @@ class VF_FB_RSS_Admin {
     }
 
     public function render_settings_page() {
-        $feed_dir = self::get_feed_directory();
-        $feed_file_path = $feed_dir['path'] . '/facebook.xml';
-        $feed_file_url = $feed_dir['url'] . '/facebook.xml';
         ?>
         <div class="wrap">
             <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
-            <div class="notice notice-info inline">
-                <p>
-                    <?php _e( 'Your feed is generated as a static file. After saving settings, click the "Regenerate Feed" button to create an updated version.', 'vf-woo-facebook-rss' ); ?>
-                    <br>
-                    <?php if ( file_exists( $feed_file_path ) ) : ?>
-                        <strong><?php _e( 'Feed URL:', 'vf-woo-facebook-rss' ); ?></strong>
-                        <code><a href="<?php echo esc_url( $feed_file_url ); ?>" target="_blank"><?php echo esc_url( $feed_file_url ); ?></a></code>
+            <?php if ( vf_fb_rss_is_polylang_wc_active() && function_exists('pll_languages_list') ) : ?>
+                <div class="notice notice-info inline">
+                    <p><?php _e( 'Polylang is active. You can generate a separate feed for each language.', 'vf-woo-facebook-rss' ); ?></p>
+                </div>
+                <?php
+                $languages = pll_languages_list( array( 'fields' => 'slug' ) );
+                $feed_dir = self::get_feed_directory();
+                foreach ( $languages as $lang ) :
+                    $feed_file_path = $feed_dir['path'] . '/facebook-' . $lang . '.xml';
+                    $feed_file_url = $feed_dir['url'] . '/facebook-' . $lang . '.xml';
+                    ?>
+                    <div class="notice notice-info inline">
+                        <h4><?php echo esc_html( strtoupper( $lang ) ); ?></h4>
+                        <p>
+                            <?php if ( file_exists( $feed_file_path ) ) : ?>
+                                <strong><?php _e( 'Feed URL:', 'vf-woo-facebook-rss' ); ?></strong>
+                                <code><a href="<?php echo esc_url( $feed_file_url ); ?>" target="_blank"><?php echo esc_url( $feed_file_url ); ?></a></code>
+                                <br>
+                                <em><?php _e( 'Last generated:', 'vf-woo-facebook-rss' ); ?> <?php echo date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), filemtime( $feed_file_path ) ); ?></em>
+                            <?php else : ?>
+                                <strong><?php _e( 'Feed has not been generated yet.', 'vf-woo-facebook-rss' ); ?></strong>
+                            <?php endif; ?>
+                        </p>
+                        <p>
+                            <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=regenerate&lang=' . $lang), 'vf_fb_regenerate_feed_' . $lang ) ); ?>" class="button button-primary">
+                                <?php _e( 'Regenerate Feed', 'vf-woo-facebook-rss' ); ?>
+                            </a>
+                            <?php if ( file_exists( $feed_file_path ) ) : ?>
+                            <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=delete&lang=' . $lang), 'vf_fb_delete_feed_' . $lang ) ); ?>" class="button button-secondary">
+                                <?php _e( 'Delete Feed', 'vf-woo-facebook-rss' ); ?>
+                            </a>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                <?php endforeach; ?>
+            <?php else : ?>
+                <?php
+                $feed_dir = self::get_feed_directory();
+                $feed_file_path = $feed_dir['path'] . '/facebook.xml';
+                $feed_file_url = $feed_dir['url'] . '/facebook.xml';
+                ?>
+                <div class="notice notice-info inline">
+                     <p>
+                        <?php _e( 'Your feed is generated as a static file. After saving settings, click the "Regenerate Feed" button to create an updated version.', 'vf-woo-facebook-rss' ); ?>
                         <br>
-                        <em><?php _e( 'Last generated:', 'vf-woo-facebook-rss' ); ?> <?php echo date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), filemtime( $feed_file_path ) ); ?></em>
-                    <?php else : ?>
-                        <strong><?php _e( 'Feed has not been generated yet.', 'vf-woo-facebook-rss' ); ?></strong>
-                    <?php endif; ?>
-                </p>
-                <p>
-                    <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=regenerate'), 'vf_fb_regenerate_feed' ) ); ?>" class="button button-primary">
-                        <?php _e( 'Regenerate Feed Now', 'vf-woo-facebook-rss' ); ?>
-                    </a>
-                    <?php if ( file_exists( $feed_file_path ) ) : ?>
-                    <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=delete'), 'vf_fb_delete_feed' ) ); ?>" class="button button-secondary">
-                        <?php _e( 'Delete Feed File', 'vf-woo-facebook-rss' ); ?>
-                    </a>
-                    <?php endif; ?>
-                </p>
-            </div>
+                        <?php if ( file_exists( $feed_file_path ) ) : ?>
+                            <strong><?php _e( 'Feed URL:', 'vf-woo-facebook-rss' ); ?></strong>
+                            <code><a href="<?php echo esc_url( $feed_file_url ); ?>" target="_blank"><?php echo esc_url( $feed_file_url ); ?></a></code>
+                            <br>
+                            <em><?php _e( 'Last generated:', 'vf-woo-facebook-rss' ); ?> <?php echo date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), filemtime( $feed_file_path ) ); ?></em>
+                        <?php else : ?>
+                            <strong><?php _e( 'Feed has not been generated yet.', 'vf-woo-facebook-rss' ); ?></strong>
+                        <?php endif; ?>
+                    </p>
+                    <p>
+                        <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=regenerate'), 'vf_fb_regenerate_feed' ) ); ?>" class="button button-primary">
+                            <?php _e( 'Regenerate Feed Now', 'vf-woo-facebook-rss' ); ?>
+                        </a>
+                        <?php if ( file_exists( $feed_file_path ) ) : ?>
+                        <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=delete'), 'vf_fb_delete_feed' ) ); ?>" class="button button-secondary">
+                            <?php _e( 'Delete Feed File', 'vf-woo-facebook-rss' ); ?>
+                        </a>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            <?php endif; ?>
 
             <form action="options.php" method="post">
                 <?php
@@ -172,23 +211,29 @@ class VF_FB_RSS_Admin {
             return;
         }
 
+        $lang = isset( $_GET['lang'] ) ? sanitize_key( $_GET['lang'] ) : null;
+
         if ( $_GET['action'] === 'regenerate' ) {
-            if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'vf_fb_regenerate_feed' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+            $nonce_action = $lang ? 'vf_fb_regenerate_feed_' . $lang : 'vf_fb_regenerate_feed';
+            if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), $nonce_action ) || ! current_user_can( 'manage_woocommerce' ) ) {
                 wp_die( 'Invalid request.' );
             }
-            VF_FB_RSS_Feed::get_instance()->regenerate_file();
-            add_action('admin_notices', function() {
-                echo '<div class="notice notice-success is-dismissible"><p>' . __( 'Facebook RSS feed file has been regenerated.', 'vf-woo-facebook-rss' ) . '</p></div>';
+            VF_FB_RSS_Feed::get_instance()->regenerate_file( $lang );
+            add_action('admin_notices', function() use ($lang) {
+                $message = $lang ? sprintf(__( 'Facebook RSS feed file for %s has been regenerated.', 'vf-woo-facebook-rss' ), strtoupper($lang)) : __( 'Facebook RSS feed file has been regenerated.', 'vf-woo-facebook-rss' );
+                echo '<div class="notice notice-success is-dismissible"><p>' . $message . '</p></div>';
             });
         }
 
         if ( $_GET['action'] === 'delete' ) {
-            if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'vf_fb_delete_feed' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+            $nonce_action = $lang ? 'vf_fb_delete_feed_' . $lang : 'vf_fb_delete_feed';
+            if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), $nonce_action ) || ! current_user_can( 'manage_woocommerce' ) ) {
                 wp_die( 'Invalid request.' );
             }
-            VF_FB_RSS_Feed::get_instance()->clear_feed_file();
-            add_action('admin_notices', function() {
-                echo '<div class="notice notice-success is-dismissible"><p>' . __( 'Facebook RSS feed file has been deleted.', 'vf-woo-facebook-rss' ) . '</p></div>';
+            VF_FB_RSS_Feed::get_instance()->clear_feed_file( $lang );
+            add_action('admin_notices', function() use ($lang) {
+                $message = $lang ? sprintf(__( 'Facebook RSS feed file for %s has been deleted.', 'vf-woo-facebook-rss' ), strtoupper($lang)) : __( 'Facebook RSS feed file has been deleted.', 'vf-woo-facebook-rss' );
+                echo '<div class="notice notice-success is-dismissible"><p>' . $message . '</p></div>';
             });
         }
     }

@@ -139,31 +139,28 @@ class VF_FB_RSS_Admin {
     }
 
     public function sanitize_settings( $input ) {
-        $output = array();
+        $output = get_option( $this->option_name, array() );
         $fields = $this->get_settings_fields();
 
         foreach ( $fields as $id => $field ) {
-            if ( ! isset( $input[ $id ] ) ) {
-                if ( $field['type'] === 'checkbox' ) {
-                    $output[ $id ] = 0;
-                }
+            if ( $field['type'] === 'checkbox' ) {
+                $output[ $id ] = isset( $input[ $id ] ) ? 1 : 0;
                 continue;
             }
 
-            $value = $input[ $id ];
-            switch ( $field['type'] ) {
-                case 'checkbox':
-                    $output[ $id ] = 1;
-                    break;
-                case 'number':
-                    $output[ $id ] = absint( $value );
-                    break;
-                case 'multiselect':
-                    $output[ $id ] = is_array( $value ) ? array_map( 'absint', $value ) : array();
-                    break;
-                default:
-                    $output[ $id ] = sanitize_text_field( $value );
-                    break;
+            if ( isset( $input[ $id ] ) ) {
+                $value = $input[ $id ];
+                switch ( $field['type'] ) {
+                    case 'number':
+                        $output[ $id ] = absint( $value );
+                        break;
+                    case 'multiselect':
+                        $output[ $id ] = is_array( $value ) ? array_map( 'absint', $value ) : array();
+                        break;
+                    default:
+                        $output[ $id ] = sanitize_text_field( $value );
+                        break;
+                }
             }
         }
         return $output;

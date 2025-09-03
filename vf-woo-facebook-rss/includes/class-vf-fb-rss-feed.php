@@ -69,10 +69,21 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 			$xml->startElement( 'rss' );
 			$xml->writeAttribute( 'version', '2.0' );
 			$xml->writeAttribute( 'xmlns:g', 'http://base.google.com/ns/1.0' );
+            $xml->writeAttribute( 'xmlns:atom', 'http://www.w3.org/2005/Atom' );
 			$xml->startElement( 'channel' );
-			$xml->writeElement( 'title', get_bloginfo( 'name' ) . ' - Facebook RSS Feed' );
+
+            $feed_dir = VF_FB_RSS_Admin::get_feed_directory();
+            $feed_url = $feed_dir['url'] . '/facebook.xml';
+
+			$xml->writeElement( 'title', html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' ) . ' - Facebook RSS Feed' );
 			$xml->writeElement( 'link', home_url() );
-			$xml->writeElement( 'description', 'Product catalog for ' . get_bloginfo( 'name' ) );
+			$xml->writeElement( 'description', 'Product catalog for ' . html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES, 'UTF-8' ) );
+
+            $xml->startElement( 'atom:link' );
+            $xml->writeAttribute( 'href', $feed_url );
+            $xml->writeAttribute( 'rel', 'self' );
+            $xml->writeAttribute( 'type', 'application/rss+xml' );
+            $xml->endElement(); // atom:link
 
 			$args = array(
 				'post_type'      => 'product',
@@ -152,7 +163,22 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 
             $xml->startElement('item');
 
-            $title = $is_variation ? ($parent_product->get_name() . ' - ' . implode(' / ', $product->get_variation_attributes(true))) : $product->get_name();
+            $xml->startElement('guid');
+            $xml->writeAttribute('isPermaLink', 'false');
+            $xml->text($id);
+            $xml->endElement(); // guid
+
+            $product_name = html_entity_decode($product->get_name(), ENT_QUOTES, 'UTF-8');
+            $parent_name = $parent_product ? html_entity_decode($parent_product->get_name(), ENT_QUOTES, 'UTF-8') : '';
+
+            if ($is_variation) {
+                $attributes = array_map(function($attr) {
+                    return html_entity_decode($attr, ENT_QUOTES, 'UTF-8');
+                }, $product->get_variation_attributes(true));
+                $title = $parent_name . ' - ' . implode(' / ', $attributes);
+            } else {
+                $title = $product_name;
+            }
             $xml->startElement('title');
             $xml->writeCData($title);
             $xml->endElement();

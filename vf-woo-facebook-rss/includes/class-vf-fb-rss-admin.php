@@ -19,7 +19,7 @@ class VF_FB_RSS_Admin {
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
-        add_action( 'admin_init', array( $this, 'handle_regenerate_action' ) );
+        add_action( 'admin_init', array( $this, 'handle_form_actions' ) );
         $this->options = get_option( $this->option_name, array() );
     }
 
@@ -59,6 +59,11 @@ class VF_FB_RSS_Admin {
                     <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=regenerate'), 'vf_fb_regenerate_feed' ) ); ?>" class="button button-primary">
                         <?php _e( 'Regenerate Feed Now', 'vf-woo-facebook-rss' ); ?>
                     </a>
+                    <?php if ( file_exists( $feed_file_path ) ) : ?>
+                    <a href="<?php echo esc_url( wp_nonce_url( admin_url('admin.php?page=vf-facebook-rss&action=delete'), 'vf_fb_delete_feed' ) ); ?>" class="button button-secondary">
+                        <?php _e( 'Delete Feed File', 'vf-woo-facebook-rss' ); ?>
+                    </a>
+                    <?php endif; ?>
                 </p>
             </div>
 
@@ -165,14 +170,28 @@ class VF_FB_RSS_Admin {
         return $output;
     }
 
-    public function handle_regenerate_action() {
-        if ( isset( $_GET['page'], $_GET['action'], $_GET['_wpnonce'] ) && $_GET['page'] === 'vf-facebook-rss' && $_GET['action'] === 'regenerate' ) {
-            if ( ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'vf_fb_regenerate_feed' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+    public function handle_form_actions() {
+        if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'vf-facebook-rss' || ! isset( $_GET['action'] ) ) {
+            return;
+        }
+
+        if ( $_GET['action'] === 'regenerate' ) {
+            if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'vf_fb_regenerate_feed' ) || ! current_user_can( 'manage_woocommerce' ) ) {
                 wp_die( 'Invalid request.' );
             }
             VF_FB_RSS_Feed::get_instance()->regenerate_file();
             add_action('admin_notices', function() {
                 echo '<div class="notice notice-success is-dismissible"><p>' . __( 'Facebook RSS feed file has been regenerated.', 'vf-woo-facebook-rss' ) . '</p></div>';
+            });
+        }
+
+        if ( $_GET['action'] === 'delete' ) {
+            if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'vf_fb_delete_feed' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+                wp_die( 'Invalid request.' );
+            }
+            VF_FB_RSS_Feed::get_instance()->clear_feed_file();
+            add_action('admin_notices', function() {
+                echo '<div class="notice notice-success is-dismissible"><p>' . __( 'Facebook RSS feed file has been deleted.', 'vf-woo-facebook-rss' ) . '</p></div>';
             });
         }
     }

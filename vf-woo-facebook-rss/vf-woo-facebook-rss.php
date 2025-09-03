@@ -70,3 +70,13 @@ function vf_fb_rss_init() {
     }
 }
 add_action( 'plugins_loaded', 'vf_fb_rss_init' );
+
+/**
+ * Declares compatibility with WooCommerce features.
+ */
+add_action( 'before_woocommerce_init', function() {
+    if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+    }
+} );
+

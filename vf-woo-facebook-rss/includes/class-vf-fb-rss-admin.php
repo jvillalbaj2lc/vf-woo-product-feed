@@ -91,6 +91,7 @@ class VF_FB_RSS_Admin {
 
         $fields = $this->get_settings_fields();
         foreach ($fields as $id => $field) {
+			$field['id'] = $id;
             add_settings_field(
                 $id,
                 $field['title'],

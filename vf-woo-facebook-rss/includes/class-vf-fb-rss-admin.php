@@ -14,13 +14,11 @@ class VF_FB_RSS_Admin {
 
     private $settings_group = 'vf_fb_rss_settings';
     private $option_name = 'vf_fb_rss_options';
-    private $options;
 
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
         add_action( 'admin_init', array( $this, 'handle_form_actions' ) );
-        $this->options = get_option( $this->option_name, array() );
     }
 
     public function add_admin_menu() {
@@ -105,8 +103,9 @@ class VF_FB_RSS_Admin {
     }
 
     public function render_field_callback( $args ) {
+        $options = get_option( $this->option_name, array() );
         $field = $args['field'];
-        $value = isset( $this->options[ $field['id'] ] ) ? $this->options[ $field['id'] ] : $field['default'];
+        $value = isset( $options[ $field['id'] ] ) ? $options[ $field['id'] ] : $field['default'];
         $name = $this->option_name . '[' . $field['id'] . ']';
 
         switch ( $field['type'] ) {

@@ -3,7 +3,7 @@
  * Feed Generator for VF Facebook RSS Feed
  *
  * @package vf-woo-facebook-rss
- * @version 1.0.1
+ * @version 1.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -13,12 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 
 	/**
-	 * Handles the generation, caching, and delivery of the RSS feed.
+	 * Handles the generation of the RSS feed file.
 	 */
 	class VF_FB_RSS_Feed {
 
 		protected static $_instance = null;
-        private $settings;
+        private $options;
 
 		public static function get_instance() {
 			if ( is_null( self::$_instance ) ) {
@@ -28,92 +28,39 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 		}
 
 		public function __construct() {
-            $this->settings = get_option( 'woocommerce_vf-facebook-rss_settings', array() );
-
-			add_action( 'init', array( $this, 'register_feed_endpoint' ) );
-			add_action( 'template_redirect', array( $this, 'maybe_render_feed' ) );
-            add_action( 'save_post_product', array( $this, 'clear_cache' ) );
-            add_action( 'woocommerce_update_options_integration_vf-facebook-rss', array( $this, 'clear_cache' ) );
+            $this->options = get_option( 'vf_fb_rss_options', array() );
 		}
 
-		public function register_feed_endpoint() {
-            add_rewrite_rule( '^facebook-rss\.xml/?$', 'index.php?vf_fb_feed=1', 'top' );
-		}
-
-        public function clear_cache() {
-            delete_transient( $this->get_transient_key() );
-            delete_transient( $this->get_transient_key( '_last_mod' ) );
-        }
-
-        public function regenerate_cache() {
-            delete_transient( $this->get_transient_key( '_last_mod' ) );
-            $this->get_last_modified_time();
+        /**
+         * Force regeneration of the feed file.
+         * Can be called from the admin page or WP-CLI.
+         */
+        public function regenerate_file() {
+            $feed_dir = VF_FB_RSS_Admin::get_feed_directory();
+            $file_path = $feed_dir['path'] . '/facebook.xml';
 
             ob_start();
             $this->generate_feed_content();
             $feed_xml = ob_get_clean();
 
-            $ttl = (int) $this->get_setting( 'cache_ttl', 60 );
-            set_transient( $this->get_transient_key(), $feed_xml, $ttl * MINUTE_IN_SECONDS );
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
+            @file_put_contents( $file_path, $feed_xml );
         }
 
-        private function get_transient_key( $suffix = '' ) {
-            return 'vf_fb_rss_feed_' . md5( serialize( $this->settings ) ) . $suffix;
-        }
-
-		public function maybe_render_feed() {
-			if ( get_query_var( 'vf_fb_feed' ) ) {
-                if ( isset( $_GET['flush'] ) && $_GET['flush'] == '1' ) {
-                    if ( current_user_can( 'manage_woocommerce' ) && isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'vf-fb-flush-cache' ) ) {
-                        $this->clear_cache();
-                        wp_safe_redirect( remove_query_arg( array( 'flush', '_wpnonce' ) ) );
-                        exit;
-                    }
-                }
-				$this->render_feed();
-				exit;
-			}
-		}
-
-        private function get_last_modified_time() {
-            $transient_key = $this->get_transient_key( '_last_mod' );
-            $last_mod_gmt = get_transient( $transient_key );
-
-            if ( false === $last_mod_gmt ) {
-                global $wpdb;
-                $last_mod_gmt = $wpdb->get_var( "SELECT MAX(post_modified_gmt) FROM {$wpdb->posts} WHERE post_type IN ('product', 'product_variation') AND post_status = 'publish'" );
-                set_transient( $transient_key, $last_mod_gmt, HOUR_IN_SECONDS * 6 );
+        /**
+         * Deletes the generated feed file.
+         */
+        public function clear_feed_file() {
+            $feed_dir = VF_FB_RSS_Admin::get_feed_directory();
+            $file_path = $feed_dir['path'] . '/facebook.xml';
+            if ( file_exists( $file_path ) ) {
+                unlink( $file_path );
             }
-
-            return $last_mod_gmt ? strtotime( $last_mod_gmt . ' GMT' ) : time();
         }
 
-		public function render_feed() {
-            $last_modified = $this->get_last_modified_time();
-            $etag = md5( $last_modified . serialize( $this->settings ) );
-
-            header( 'Content-Type: application/rss+xml; charset=UTF-8' );
-            header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $last_modified ) . ' GMT' );
-            header( 'ETag: "' . $etag . '"' );
-
-            if ( ( isset( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) && strtotime( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) >= $last_modified ) ||
-                 ( isset( $_SERVER['HTTP_IF_NONE_MATCH'] ) && trim( $_SERVER['HTTP_IF_NONE_MATCH'], '"' ) === $etag ) ) {
-                status_header( 304 );
-                exit;
-            }
-
-            $transient_key = $this->get_transient_key();
-            $feed_xml = get_transient( $transient_key );
-
-            if ( false === $feed_xml ) {
-                $this->regenerate_cache();
-                $feed_xml = get_transient( $transient_key );
-            }
-
-            echo $feed_xml;
-            exit;
-        }
-
+        /**
+         * Generates the raw XML content for the feed by querying products.
+         */
         private function generate_feed_content() {
             $xml = new XMLWriter();
 			$xml->openMemory();
@@ -130,7 +77,7 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 			$args = array(
 				'post_type'      => 'product',
 				'post_status'    => 'publish',
-				'posts_per_page' => 50,
+				'posts_per_page' => 100, // Increased for faster file generation
 				'tax_query'      => array(),
                 'meta_query'     => array('relation' => 'AND'),
 			);
@@ -145,12 +92,19 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
                 );
             }
 
-            if ( $this->get_setting('include_hidden', 'no') === 'no' ) {
+            if ( ! $this->get_setting('include_hidden', 0) ) {
                 $args['tax_query'][] = array(
                     'taxonomy' => 'product_visibility',
                     'field'    => 'name',
                     'terms'    => 'exclude-from-catalog',
                     'operator' => 'NOT IN',
+                );
+            }
+
+            if ( ! $this->get_setting('include_out_of_stock', 0) ) {
+                $args['meta_query'][] = array(
+                    'key' => '_stock_status',
+                    'value' => 'instock'
                 );
             }
 
@@ -166,22 +120,17 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
 
 						if ( ! $product ) continue;
 
-                        if ( $this->get_setting('include_out_of_stock', 'no') === 'no' && ! $product->is_in_stock() && ! $product->is_type('variable') ) {
-                            continue;
-                        }
-
 						if ( $product->is_type( 'variable' ) ) {
+                            if ( ! $product->has_child() ) continue;
 							$variations = $product->get_children();
 							foreach ( $variations as $variation_id ) {
 								$variation = wc_get_product( $variation_id );
 								if ( ! $variation || $variation->get_status() !== 'publish' ) continue;
-
-								if ( $this->get_setting('include_out_of_stock', 'no') === 'no' && ! $variation->is_in_stock() ) {
-									continue;
-								}
+                                if ( ! $this->get_setting('include_out_of_stock', 0) && !$variation->is_in_stock() ) continue;
 								$this->write_item_xml( $xml, $variation, $product );
 							}
 						} else {
+                            if ( ! $this->get_setting('include_out_of_stock', 0) && !$product->is_in_stock() ) continue;
 							$this->write_item_xml( $xml, $product );
 						}
 					}
@@ -212,7 +161,7 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
             $xml->writeElement('link', $link);
 
             $description = $product->get_description() ? $product->get_description() : ($parent_product ? $parent_product->get_description() : '');
-            if ($this->get_setting('strip_shortcodes', 'yes') === 'yes') {
+            if ( $this->get_setting('strip_shortcodes', 1) ) {
                 $description = strip_shortcodes($description);
             }
             $description = wp_strip_all_tags(str_replace('</', ' </', $description));
@@ -231,7 +180,7 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
             $price = wc_format_decimal($product->get_price(), 2, false) . ' ' . $currency;
             $xml->writeElement('g:price', $price);
 
-            if ($this->get_setting('use_sale_price', 'yes') === 'yes' && $product->is_on_sale()) {
+            if ( $this->get_setting('use_sale_price', 1) && $product->is_on_sale()) {
                 $sale_price = wc_format_decimal($product->get_sale_price(), 2, false) . ' ' . $currency;
                 $xml->writeElement('g:sale_price', $sale_price);
 
@@ -306,11 +255,7 @@ if ( ! class_exists( 'VF_FB_RSS_Feed' ) ) :
         }
 
         private function get_setting( $key, $default = '' ) {
-            $value = isset( $this->settings[ $key ] ) ? $this->settings[ $key ] : $default;
-            if ( is_array($default) && !is_array($value)) {
-                return $default;
-            }
-            return $value;
+            return isset( $this->options[ $key ] ) ? $this->options[ $key ] : $default;
         }
 	}
 endif;

@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name:       VF Woo Facebook RSS Feed
- * Plugin URI:        https://github.com/VF-Jules/vf-woo-facebook-rss
+ * Plugin URI:        https://memorybrigade.pt/
  * Description:       Generates a Facebook Catalog compatible RSS feed for WooCommerce products.
  * Version:           1.1.0
- * Author:            Jules
- * Author URI:        https://va.new/jules
+ * Author:            Joseph V.
+ * Author URI:        https://memorybrigade.pt/
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       vf-woo-facebook-rss
@@ -79,3 +79,4 @@ add_action( 'before_woocommerce_init', function() {
         \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
     }
 } );
+

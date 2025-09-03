@@ -77,8 +77,17 @@ add_action( 'plugins_loaded', 'vf_fb_rss_init' );
  * @return bool
  */
 function vf_fb_rss_is_polylang_wc_active() {
-    // A simple check for the existence of the main Polylang class and the WooCommerce integration class.
-    return class_exists( 'Polylang' ) && class_exists( 'PLL_WC' );
+    if ( ! function_exists( 'is_plugin_active' ) ) {
+        include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+    }
+
+    // Path for the standalone 'Polylang for WooCommerce' plugin.
+    $standalone_addon = 'polylang-wc/polylang-wc.php';
+
+    // Path for the main 'Polylang Pro' plugin, which includes the WC integration.
+    $pro_plugin = 'polylang-pro/polylang.php';
+
+    return is_plugin_active( $standalone_addon ) || is_plugin_active( $pro_plugin );
 }
 
 /**

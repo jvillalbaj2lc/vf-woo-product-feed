@@ -14,13 +14,11 @@ class VF_FB_RSS_Admin {
 
     private $settings_group = 'vf_fb_rss_settings';
     private $option_name = 'vf_fb_rss_options';
-    private $options;
 
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
         add_action( 'admin_init', array( $this, 'handle_form_actions' ) );
-        $this->options = get_option( $this->option_name, array() );
     }
 
     public function add_admin_menu() {
@@ -93,6 +91,7 @@ class VF_FB_RSS_Admin {
 
         $fields = $this->get_settings_fields();
         foreach ($fields as $id => $field) {
+			$field['id'] = $id;
             add_settings_field(
                 $id,
                 $field['title'],
@@ -105,8 +104,9 @@ class VF_FB_RSS_Admin {
     }
 
     public function render_field_callback( $args ) {
+        $options = get_option( $this->option_name, array() );
         $field = $args['field'];
-        $value = isset( $this->options[ $field['id'] ] ) ? $this->options[ $field['id'] ] : $field['default'];
+        $value = isset( $options[ $field['id'] ] ) ? $options[ $field['id'] ] : $field['default'];
         $name = $this->option_name . '[' . $field['id'] . ']';
 
         switch ( $field['type'] ) {
@@ -140,31 +140,28 @@ class VF_FB_RSS_Admin {
     }
 
     public function sanitize_settings( $input ) {
-        $output = array();
+        $output = get_option( $this->option_name, array() );
         $fields = $this->get_settings_fields();
 
         foreach ( $fields as $id => $field ) {
-            if ( ! isset( $input[ $id ] ) ) {
-                if ( $field['type'] === 'checkbox' ) {
-                    $output[ $id ] = 0;
-                }
+            if ( $field['type'] === 'checkbox' ) {
+                $output[ $id ] = isset( $input[ $id ] ) ? 1 : 0;
                 continue;
             }
 
-            $value = $input[ $id ];
-            switch ( $field['type'] ) {
-                case 'checkbox':
-                    $output[ $id ] = 1;
-                    break;
-                case 'number':
-                    $output[ $id ] = absint( $value );
-                    break;
-                case 'multiselect':
-                    $output[ $id ] = is_array( $value ) ? array_map( 'absint', $value ) : array();
-                    break;
-                default:
-                    $output[ $id ] = sanitize_text_field( $value );
-                    break;
+            if ( isset( $input[ $id ] ) ) {
+                $value = $input[ $id ];
+                switch ( $field['type'] ) {
+                    case 'number':
+                        $output[ $id ] = absint( $value );
+                        break;
+                    case 'multiselect':
+                        $output[ $id ] = is_array( $value ) ? array_map( 'absint', $value ) : array();
+                        break;
+                    default:
+                        $output[ $id ] = sanitize_text_field( $value );
+                        break;
+                }
             }
         }
         return $output;
